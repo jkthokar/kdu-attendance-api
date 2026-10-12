@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: kdu-attendance-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SYNC_TOKEN
+        generateValue: true
+      - key: DB_PATH
+        value: /opt/render/project/src/attendance_cloud.db
