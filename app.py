@@ -115,10 +115,14 @@ def index():
 @app.route('/portal/')
 def portal():
     """Serve the student web portal (web/index.html)."""
-    here    = os.path.dirname(os.path.abspath(__file__))
-    portal  = os.path.join(here, '..', 'web', 'index.html')
-    if os.path.exists(portal):
-        return send_file(os.path.abspath(portal))
+        here = os.path.dirname(os.path.abspath(__file__))
+    candidates = [
+        os.path.join(here, 'web', 'index.html'),
+        os.path.join(here, '..', 'web', 'index.html'),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            return send_file(os.path.abspath(path))
     return '<h1>Student portal not found.</h1><p>Place web/index.html next to api/</p>', 404
 
 @app.route('/api/login', methods=['POST'])
