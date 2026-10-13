@@ -1,1 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KDU Smart Attendance — Portal</title>
+<style>
+  :root {
+    --bg:      #0f0f17;
+    --panel:   #1a1a2e;
+    --surface: #16213e;
+    --card:    #1e2a45;
+    --overlay: #2d3561;
+    --border:  #2a3560;
+    --text:    #e8eaf6;
+    --sub:     #90a4c8;
+    --muted:   #536080;
+    --accent:  #7c6aff;
+    --teal:    #00d4aa;
+    --green:   #00e5aa;
+    --yellow:  #ffd76e;
+    --red:     #ff5c7c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text);
+         font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
 
+  /* ── Role picker ── */
+  #role-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 20px;
+  }
+  .role-card {
+    background: var(--panel); border-radius: 16px;
+    padding: 40px 36px; width: 100%; max-width: 420px;
+    border-top: 4px solid var(--accent); text-align: center;
+  }
+  .logo-badge {
+    width: 64px; height: 64px; background: var(--accent);
+    border-radius: 14px; display: flex; align-items: center;
+    justify-content: center; font-size: 24px; font-weight: 700;
+    margin: 0 auto 20px;
+  }
+  .role-card h1 { font-size: 22px; margin-bottom: 6px; }
+  .role-card p  { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+  .role-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .role-btn {
+    padding: 18px 10px; border: 2px solid var(--border);
+    border-radius: 12px; background: var(--card); color: var(--text);
+    cursor: pointer; font-size: 14px; font-weight: 600;
+    transition: border-color .2s, background .2s;
+  }
+  .role-btn:hover { border-color: var(--accent); background: var(--overlay); }
+  .role-btn .icon { font-size: 28px; display: block; margin-bottom: 8px; }
+
+  /* ── Login screen ── */
+  #login-screen {
+    display: none; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 20px;
+  }
+  .login-card {
+    background: var(--panel); border-radius: 16px;
+    padding: 40px 36px; width: 100%; max-width: 400px;
+  }
+  .login-card.prof-card { border-top: 4px solid var(--yellow); }
+  .login-card.stud-card { border-top: 4px solid var(--teal); }
+  .login-card h1 { font-size: 22px; margin-bottom: 4px; }
+  .login-card p  { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+  label { display: block; font-size: 12px; color: var(--sub); margin-bottom: 6px; }
+  input {
+    width: 100%; padding: 10px 14px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 14px;
+    outline: none; margin-bottom: 16px;
+  }
+  input:focus { border-color: var(--accent); }
+  .btn {
+    width: 100%; padding: 11px; border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .88; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-yellow  { background: var(--yellow); color: #111; }
+  .btn-teal    { background: var(--teal);   color: #111; }
+  .btn-ghost   { background: var(--overlay); color: var(--text); margin-top: 10px; }
+  .error-msg   { color: var(--red); font-size: 13px; margin-top: 10px;
+                 text-align: center; min-height: 20px; }
+
+  /* ── App shell ── */
+  #app { display: none; flex-direction: column; min-height: 100vh; }
+
+  header {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 0 20px; display: flex; align-items: center;
+    gap: 14px; height: 60px; position: sticky; top: 0; z-index: 10;
+  }
+  .hdr-badge {
+    width: 36px; height: 36px; background: var(--teal);
+    border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-weight: 700; font-size: 14px;
+    color: var(--bg); flex-shrink: 0;
+  }
+  .hdr-badge.prof { background: var(--yellow); }
+  .hdr-info { flex: 1; }
+  .hdr-info .name { font-weight: 600; font-size: 15px; }
+  .hdr-info .id   { font-size: 12px; color: var(--sub); }
+  .hdr-right { display: flex; align-items: center; gap: 10px; }
+  .role-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; }
+  .role-badge.student  { background: #0d2a22; color: var(--teal); }
+  .role-badge.professor{ background: #2a240a; color: var(--yellow); }
+  .logout-btn { background: none; border: 1px solid var(--border);
+                color: var(--sub); padding: 5px 12px; border-radius: 6px;
+                cursor: pointer; font-size: 12px; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; border-bottom: 1px solid var(--border);
+          background: var(--panel); padding: 0 20px; overflow-x: auto; }
+  .tab-btn {
+    padding: 14px 20px; border: none; background: none;
+    color: var(--muted); cursor: pointer; font-size: 14px;
+    border-bottom: 2px solid transparent; white-space: nowrap;
+    transition: color .15s;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-panel { display: none; padding: 24px 20px; }
+  .tab-panel.active { display: block; }
+
+  /* ── Stat cards ── */
+  .stat-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr));
+              gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--card); border-radius: 12px; padding: 18px 16px;
+    border-top: 3px solid var(--accent);
+  }
+  .stat-card .num  { font-size: 32px; font-weight: 700; }
+  .stat-card .lbl  { font-size: 12px; color: var(--sub); margin-top: 4px; }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; border-radius: 10px;
+                border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--surface); padding: 10px 14px;
+    text-align: left; font-size: 12px; color: var(--accent);
+    font-weight: 600; letter-spacing: .5px;
+  }
+  tbody tr { border-top: 1px solid var(--border); }
+  tbody tr:hover { background: var(--overlay); }
+  td { padding: 10px 14px; font-size: 13px; }
+
+  .badge {
+    display: inline-block; padding: 2px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-green  { background: #0d2a1a; color: var(--green); }
+  .badge-yellow { background: #2a250a; color: var(--yellow); }
+  .badge-red    { background: #2a0d15; color: var(--red); }
+  .badge-present{ background: #0d2a1a; color: var(--green); }
+  .badge-absent { background: #2a0d15; color: var(--red); }
+
+  /* ── Chart ── */
+  .chart-wrap { display: flex; flex-direction: column; gap: 14px; }
+  .chart-row  { display: flex; align-items: center; gap: 12px; }
+  .chart-label{ width: 160px; font-size: 13px; color: var(--sub);
+                text-align: right; flex-shrink: 0; }
+  .chart-bar-bg {
+    flex: 1; height: 28px; background: var(--surface);
+    border-radius: 6px; overflow: hidden;
+  }
+  .chart-bar  { height: 100%; border-radius: 6px;
+                transition: width .5s ease; display: flex;
+                align-items: center; padding-left: 10px;
+                font-size: 12px; font-weight: 600; color: var(--bg); }
+  .chart-pct  { width: 46px; font-size: 13px; font-weight: 700;
+                flex-shrink: 0; }
+
+  /* ── Filter ── */
+  .filter-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  select {
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); padding: 7px 12px; border-radius: 8px;
+    font-size: 13px; outline: none; cursor: pointer;
+  }
+  select:focus { border-color: var(--accent); }
+
+  /* ── Loading ── */
+  .spinner { text-align: center; padding: 60px 20px;
+             color: var(--muted); font-size: 14px; }
+
+  /* ── Section title ── */
+  .section-title {
+    font-size: 16px; font-weight: 700; margin-bottom: 16px;
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+  }
+
+  /* ── Footer ── */
+  footer { text-align: center; padding: 20px;
+           color: var(--muted); font-size: 12px;
+           border-top: 1px solid var(--border); margin-top: auto; }
+
+  @media (max-width: 500px) {
+    .login-card { padding: 28px 20px; }
+    .chart-label { width: 100px; font-size: 11px; }
+    .role-buttons { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Role picker ── -->
+<div id="role-screen">
+  <div class="role-card">
+    <div class="logo-badge">AI</div>
+    <h1>KDU Attendance Portal</h1>
+    <p>Smart Attendance System v4.0<br>Kyungdong University — AI Department</p>
+    <div class="role-buttons">
+      <button class="role-btn" onclick="showLogin('student')">
+        <span class="icon">🎓</span>Student
+      </button>
+      <button class="role-btn" onclick="showLogin('professor')">
+        <span class="icon">👨‍🏫</span>Professor
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Login screen ── -->
+<div id="login-screen">
+  <div class="login-card" id="login-card-inner">
+    <div class="logo-badge" id="login-badge">AI</div>
+    <h1 id="login-title">Sign In</h1>
+    <p id="login-sub">Enter your credentials</p>
+
+    <div id="login-fields"></div>
+
+    <button class="btn" id="login-btn" onclick="doLogin()">Sign In →</button>
+    <button class="btn btn-ghost" onclick="showRolePicker()">← Back</button>
+    <div class="error-msg" id="login-err"></div>
+  </div>
+</div>
+
+<!-- ── Main app ── -->
+<div id="app">
+  <header>
+    <div class="hdr-badge" id="hdr-initial">?</div>
+    <div class="hdr-info">
+      <div class="name" id="hdr-name">—</div>
+      <div class="id"   id="hdr-id">—</div>
+    </div>
+    <div class="hdr-right">
+      <span class="role-badge" id="hdr-role-badge">—</span>
+      <button class="logout-btn" onclick="doLogout()">Log out</button>
+    </div>
+  </header>
+
+  <div class="tabs" id="tabs-row"></div>
+  <div id="tab-panels"></div>
+
+  <footer>
+    KDU Smart Attendance System v4.0 &nbsp;|&nbsp;
+    ArcFace + SVM Recognition Engine &nbsp;|&nbsp;
+    Group 11 — Jay Kumar Tamang
+  </footer>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+
+// ── State ─────────────────────────────────────────────────────────
+let _role    = '';   // 'student' | 'professor'
+let _token   = '';
+let _sid     = '';
+let _name    = '';
+let _summary = [];
+let _profPwd = '';
+
+// ── Role picker ───────────────────────────────────────────────────
+function showRolePicker() {
+  hide('login-screen'); hide('app');
+  show('role-screen', 'flex');
+}
+
+function showLogin(role) {
+  _role = role;
+  hide('role-screen');
+
+  const card  = document.getElementById('login-card-inner');
+  const badge = document.getElementById('login-badge');
+  const title = document.getElementById('login-title');
+  const sub   = document.getElementById('login-sub');
+  const btn   = document.getElementById('login-btn');
+  const fields= document.getElementById('login-fields');
+
+  if (role === 'student') {
+    card.className  = 'login-card stud-card';
+    badge.style.background = 'var(--teal)';
+    title.textContent = 'Student Portal';
+    sub.textContent   = 'Enter your Student ID to continue';
+    btn.className     = 'btn btn-teal';
+    fields.innerHTML  = `
+      <label for="sid-input">Student ID</label>
+      <input id="sid-input" type="text" placeholder="e.g. 251031024" autocomplete="off">`;
+  } else {
+    card.className  = 'login-card prof-card';
+    badge.style.background = 'var(--yellow)';
+    title.textContent = 'Professor Dashboard';
+    sub.textContent   = 'Enter professor password to continue';
+    btn.className     = 'btn btn-yellow';
+    fields.innerHTML  = `
+      <label for="prof-pwd">Professor Password</label>
+      <input id="prof-pwd" type="password" placeholder="Enter password" autocomplete="off">`;
+  }
+
+  document.getElementById('login-err').textContent = '';
+  show('login-screen', 'flex');
+  setTimeout(() => {
+    const inp = document.querySelector('#login-fields input');
+    if (inp) inp.focus();
+  }, 50);
+}
+
+// ── Login ─────────────────────────────────────────────────────────
+async function doLogin() {
+  const err = document.getElementById('login-err');
+  err.textContent = 'Signing in…';
+
+  if (_role === 'student') {
+    const sid = (document.getElementById('sid-input')||{}).value?.trim();
+    if (!sid) { err.textContent = 'Enter your Student ID.'; return; }
+    try {
+      const res  = await fetch(`${API_BASE}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: sid })
+      });
+      const data = await res.json();
+      if (!res.ok) { err.textContent = data.error || 'Login failed.'; return; }
+      _token = data.token; _sid = data.student_id; _name = data.name;
+      openStudentApp(data);
+    } catch(e) { err.textContent = 'Cannot reach server.'; }
+
+  } else {
+    const pwd = (document.getElementById('prof-pwd')||{}).value?.trim();
+    if (!pwd) { err.textContent = 'Enter password.'; return; }
+    try {
+      const res  = await fetch(`${API_BASE}/api/prof/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd })
+      });
+      const data = await res.json();
+      if (!res.ok) { err.textContent = data.error || 'Wrong password.'; return; }
+      _token = data.token; _name = 'Professor'; _profPwd = pwd;
+      openProfessorApp();
+    } catch(e) { err.textContent = 'Cannot reach server.'; }
+  }
+}
+
+// ── Logout ────────────────────────────────────────────────────────
+function doLogout() {
+  _token=''; _sid=''; _name=''; _summary=[]; _role=''; _profPwd='';
+  hide('app'); showRolePicker();
+}
+
+// ── Open student app ──────────────────────────────────────────────
+function openStudentApp(data) {
+  hide('login-screen');
+  document.getElementById('hdr-initial').textContent =
+    _name.trim().charAt(0).toUpperCase();
+  document.getElementById('hdr-initial').className = 'hdr-badge';
+  document.getElementById('hdr-name').textContent  = _name;
+  document.getElementById('hdr-id').textContent    = `ID: ${_sid}  |  ${data.gmail||''}`;
+  const rb = document.getElementById('hdr-role-badge');
+  rb.textContent = 'Student'; rb.className = 'role-badge student';
+
+  document.getElementById('tabs-row').innerHTML = `
+    <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Overview</button>
+    <button class="tab-btn"        onclick="switchTab('sessions',this)">📋 Session History</button>
+    <button class="tab-btn"        onclick="switchTab('chart',this)">📈 Attendance Chart</button>`;
+
+  document.getElementById('tab-panels').innerHTML = `
+    <div class="tab-panel active" id="tab-overview">
+      <div class="stat-row" id="stat-row"><div class="spinner">Loading…</div></div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>SUBJECT</th><th>PRESENT</th><th>ABSENT</th>
+          <th>TOTAL</th><th>RATE</th><th>STATUS</th>
+        </tr></thead>
+        <tbody id="summary-body"></tbody>
+      </table></div>
+    </div>
+    <div class="tab-panel" id="tab-sessions">
+      <div class="filter-row">
+        <select id="subj-filter" onchange="loadSessions()">
+          <option value="">All Subjects</option>
+        </select>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>DATE</th><th>SUBJECT</th><th>SEMESTER</th>
+          <th>STATUS</th><th>CONFIDENCE</th>
+        </tr></thead>
+        <tbody id="sessions-body"></tbody>
+      </table></div>
+    </div>
+    <div class="tab-panel" id="tab-chart">
+      <div class="chart-wrap" id="chart-wrap"><div class="spinner">Loading…</div></div>
+    </div>`;
+
+  show('app', 'flex');
+  loadOverview();
+}
+
+// ── Open professor app ────────────────────────────────────────────
+function openProfessorApp() {
+  hide('login-screen');
+  const badge = document.getElementById('hdr-initial');
+  badge.textContent = '👨‍🏫'; badge.className = 'hdr-badge prof';
+  document.getElementById('hdr-name').textContent = 'Professor Dashboard';
+  document.getElementById('hdr-id').textContent   = 'KDU AI Department — Group 11';
+  const rb = document.getElementById('hdr-role-badge');
+  rb.textContent = 'Professor'; rb.className = 'role-badge professor';
+
+  document.getElementById('tabs-row').innerHTML = `
+    <button class="tab-btn active" onclick="switchTab('p-overview',this)">📊 Overview</button>
+    <button class="tab-btn"        onclick="switchTab('p-students',this)">🎓 Students</button>
+    <button class="tab-btn"        onclick="switchTab('p-sessions',this)">📋 Sessions</button>
+    <button class="tab-btn"        onclick="switchTab('p-chart',this)">📈 Attendance Chart</button>`;
+
+  document.getElementById('tab-panels').innerHTML = `
+    <div class="tab-panel active" id="tab-p-overview">
+      <div class="stat-row" id="p-stat-row"><div class="spinner">Loading…</div></div>
+      <div class="section-title">📚 Attendance by Subject</div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>SUBJECT</th><th>SESSIONS</th><th>AVG ATTENDANCE</th><th>STATUS</th>
+        </tr></thead>
+        <tbody id="p-subject-body"></tbody>
+      </table></div>
+    </div>
+    <div class="tab-panel" id="tab-p-students">
+      <div class="filter-row">
+        <select id="p-subj-filter" onchange="loadProfStudents()">
+          <option value="">All Subjects</option>
+        </select>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>STUDENT ID</th><th>NAME</th><th>SUBJECT</th>
+          <th>PRESENT</th><th>ABSENT</th><th>RATE</th><th>STATUS</th>
+        </tr></thead>
+        <tbody id="p-students-body"></tbody>
+      </table></div>
+    </div>
+    <div class="tab-panel" id="tab-p-sessions">
+      <div class="filter-row">
+        <select id="p-sess-subj" onchange="loadProfSessions()">
+          <option value="">All Subjects</option>
+        </select>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>DATE</th><th>SUBJECT</th><th>SEMESTER</th>
+          <th>PRESENT</th><th>ABSENT</th><th>TOTAL</th>
+        </tr></thead>
+        <tbody id="p-sessions-body"></tbody>
+      </table></div>
+    </div>
+    <div class="tab-panel" id="tab-p-chart">
+      <div class="chart-wrap" id="p-chart-wrap"><div class="spinner">Loading…</div></div>
+    </div>`;
+
+  show('app', 'flex');
+  loadProfOverview();
+}
+
+// ── Tab switching ─────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name==='sessions')   loadSessions();
+  if (name==='chart')      renderChart();
+  if (name==='p-students') loadProfStudents();
+  if (name==='p-sessions') loadProfSessions();
+  if (name==='p-chart')    renderProfChart();
+}
+
+// ── Student: auth headers ─────────────────────────────────────────
+function authHeaders() {
+  return { 'X-Student-ID': _sid, 'X-Student-Token': _token };
+}
+function profHeaders() {
+  return { 'X-Prof-Token': _token };
+}
+
+// ── Student: overview ─────────────────────────────────────────────
+async function loadOverview() {
+  try {
+    const res = await fetch(`${API_BASE}/api/my/summary`, { headers: authHeaders() });
+    _summary  = await res.json();
+    renderStats(); renderSummaryTable(); loadSubjectFilter();
+  } catch(e) {
+    document.getElementById('stat-row').innerHTML =
+      '<div class="spinner">Failed to load data.</div>';
+  }
+}
+
+function renderStats() {
+  const total=_summary.reduce((a,r)=>a+r.total,0);
+  const present=_summary.reduce((a,r)=>a+r.present,0);
+  const absent=_summary.reduce((a,r)=>a+r.absent,0);
+  const pct=total?Math.round(present/total*100):0;
+  document.getElementById('stat-row').innerHTML = [
+    {num:_summary.length, lbl:'Subjects',       color:'#7c6aff'},
+    {num:total,           lbl:'Total Sessions',  color:'#00d4aa'},
+    {num:present,         lbl:'Present',          color:'#00e5aa'},
+    {num:absent,          lbl:'Absent',           color:'#ff5c7c'},
+    {num:pct+'%',         lbl:'Overall Rate',     color:pct>=75?'#00e5aa':pct>=50?'#ffd76e':'#ff5c7c'},
+  ].map(c=>`<div class="stat-card" style="border-top-color:${c.color}">
+    <div class="num" style="color:${c.color}">${c.num}</div>
+    <div class="lbl">${c.lbl}</div></div>`).join('');
+}
+
+function renderSummaryTable() {
+  document.getElementById('summary-body').innerHTML = _summary.map(r => {
+    const cls = r.rate>=75?'green':r.rate>=50?'yellow':'red';
+    return `<tr>
+      <td><strong>${r.subject}</strong></td>
+      <td style="color:var(--green)">${r.present}</td>
+      <td style="color:var(--red)">${r.absent}</td>
+      <td>${r.total}</td>
+      <td><strong>${r.rate}%</strong></td>
+      <td><span class="badge badge-${cls}">${r.status}</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">No data yet.</td></tr>';
+}
+
+async function loadSubjectFilter() {
+  try {
+    const res  = await fetch(`${API_BASE}/api/my/subjects`, { headers: authHeaders() });
+    const subs = await res.json();
+    const sel  = document.getElementById('subj-filter');
+    if (sel) sel.innerHTML = '<option value="">All Subjects</option>' +
+      subs.map(s=>`<option value="${s}">${s}</option>`).join('');
+  } catch(e) {}
+}
+
+async function loadSessions() {
+  const subj = (document.getElementById('subj-filter')||{}).value || '';
+  const url  = `${API_BASE}/api/my/sessions`+(subj?`?subject=${encodeURIComponent(subj)}`:'');
+  try {
+    const res  = await fetch(url, { headers: authHeaders() });
+    const rows = await res.json();
+    document.getElementById('sessions-body').innerHTML = rows.map(r => {
+      const d=r.started_at?r.started_at.replace('T',' ').slice(0,16):'—';
+      const conf=r.confidence?Math.round(r.confidence)+'%':'—';
+      const sc=r.status==='Present'?'present':'absent';
+      return `<tr><td>${d}</td><td>${r.subject}</td><td>${r.semester||'—'}</td>
+        <td><span class="badge badge-${sc}">${r.status}</span></td><td>${conf}</td></tr>`;
+    }).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px">No sessions yet.</td></tr>';
+  } catch(e) {}
+}
+
+function renderChart() {
+  if (!_summary.length) {
+    document.getElementById('chart-wrap').innerHTML='<div class="spinner">No data yet.</div>'; return;
+  }
+  document.getElementById('chart-wrap').innerHTML = _summary.map(r => {
+    const col=r.rate>=75?'var(--green)':r.rate>=50?'var(--yellow)':'var(--red)';
+    return `<div class="chart-row">
+      <div class="chart-label">${r.subject}</div>
+      <div class="chart-bar-bg"><div class="chart-bar" style="width:${r.rate}%;background:${col}">
+        ${r.rate>=15?r.present+'/'+r.total:''}</div></div>
+      <div class="chart-pct" style="color:${col}">${r.rate}%</div></div>`;
+  }).join('')+`<div style="display:flex;gap:20px;padding:10px 0;flex-wrap:wrap;margin-top:8px">
+    <span style="font-size:12px;color:var(--muted)">Legend:</span>
+    <span style="font-size:12px;color:var(--green)">● ≥75% Good</span>
+    <span style="font-size:12px;color:var(--yellow)">● ≥50% Warning</span>
+    <span style="font-size:12px;color:var(--red)">● &lt;50% Danger</span></div>`;
+}
+
+// ── Professor: overview ───────────────────────────────────────────
+let _profData = null;
+
+async function loadProfOverview() {
+  try {
+    const res  = await fetch(`${API_BASE}/api/prof/overview`, { headers: profHeaders() });
+    _profData  = await res.json();
+    renderProfStats();
+    renderProfSubjectTable();
+    populateProfFilters();
+  } catch(e) {
+    document.getElementById('p-stat-row').innerHTML =
+      '<div class="spinner">Failed to load. Check connection.</div>';
+  }
+}
+
+function renderProfStats() {
+  const d = _profData;
+  document.getElementById('p-stat-row').innerHTML = [
+    {num:d.total_students,  lbl:'Total Students',  color:'#7c6aff'},
+    {num:d.total_sessions,  lbl:'Sessions Run',     color:'#00d4aa'},
+    {num:d.total_records,   lbl:'Attendance Records',color:'#00e5aa'},
+    {num:d.avg_rate+'%',    lbl:'Avg Attendance',   color:d.avg_rate>=75?'#00e5aa':d.avg_rate>=50?'#ffd76e':'#ff5c7c'},
+  ].map(c=>`<div class="stat-card" style="border-top-color:${c.color}">
+    <div class="num" style="color:${c.color}">${c.num}</div>
+    <div class="lbl">${c.lbl}</div></div>`).join('');
+}
+
+function renderProfSubjectTable() {
+  document.getElementById('p-subject-body').innerHTML =
+    (_profData.subjects||[]).map(r => {
+      const cls=r.avg_rate>=75?'green':r.avg_rate>=50?'yellow':'red';
+      return `<tr>
+        <td><strong>${r.subject}</strong></td>
+        <td>${r.sessions}</td>
+        <td><strong>${r.avg_rate}%</strong></td>
+        <td><span class="badge badge-${cls}">${r.avg_rate>=75?'Good':r.avg_rate>=50?'Warning':'Low'}</span></td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:30px">No data yet.</td></tr>';
+}
+
+function populateProfFilters() {
+  const subjects = (_profData.subjects||[]).map(r=>r.subject);
+  ['p-subj-filter','p-sess-subj'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (sel) sel.innerHTML = '<option value="">All Subjects</option>' +
+      subjects.map(s=>`<option value="${s}">${s}</option>`).join('');
+  });
+}
+
+async function loadProfStudents() {
+  const subj = (document.getElementById('p-subj-filter')||{}).value||'';
+  const url  = `${API_BASE}/api/prof/students`+(subj?`?subject=${encodeURIComponent(subj)}`:'');
+  try {
+    const res  = await fetch(url, { headers: profHeaders() });
+    const rows = await res.json();
+    document.getElementById('p-students-body').innerHTML = rows.map(r => {
+      const cls=r.rate>=75?'green':r.rate>=50?'yellow':'red';
+      return `<tr>
+        <td><code>${r.student_id}</code></td>
+        <td><strong>${r.name}</strong></td>
+        <td>${r.subject}</td>
+        <td style="color:var(--green)">${r.present}</td>
+        <td style="color:var(--red)">${r.absent}</td>
+        <td><strong>${r.rate}%</strong></td>
+        <td><span class="badge badge-${cls}">${r.rate>=75?'Good':r.rate>=50?'Warning':'Danger'}</span></td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px">No data yet.</td></tr>';
+  } catch(e) {}
+}
+
+async function loadProfSessions() {
+  const subj = (document.getElementById('p-sess-subj')||{}).value||'';
+  const url  = `${API_BASE}/api/prof/sessions`+(subj?`?subject=${encodeURIComponent(subj)}`:'');
+  try {
+    const res  = await fetch(url, { headers: profHeaders() });
+    const rows = await res.json();
+    document.getElementById('p-sessions-body').innerHTML = rows.map(r => {
+      const d=r.started_at?r.started_at.replace('T',' ').slice(0,16):'—';
+      return `<tr>
+        <td>${d}</td><td><strong>${r.subject}</strong></td>
+        <td>${r.semester||'—'}</td>
+        <td style="color:var(--green)">${r.present}</td>
+        <td style="color:var(--red)">${r.absent}</td>
+        <td>${r.total}</td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">No sessions yet.</td></tr>';
+  } catch(e) {}
+}
+
+async function renderProfChart() {
+  try {
+    const res  = await fetch(`${API_BASE}/api/prof/students`, { headers: profHeaders() });
+    const rows = await res.json();
+    // group by subject
+    const bySubj = {};
+    rows.forEach(r => {
+      if (!bySubj[r.subject]) bySubj[r.subject] = {present:0,total:0};
+      bySubj[r.subject].present += r.present;
+      bySubj[r.subject].total   += r.total;
+    });
+    const data = Object.entries(bySubj).map(([subject, v]) => ({
+      subject, rate: v.total ? Math.round(v.present/v.total*100) : 0,
+      present: v.present, total: v.total
+    }));
+    document.getElementById('p-chart-wrap').innerHTML = data.map(r => {
+      const col=r.rate>=75?'var(--green)':r.rate>=50?'var(--yellow)':'var(--red)';
+      return `<div class="chart-row">
+        <div class="chart-label">${r.subject}</div>
+        <div class="chart-bar-bg"><div class="chart-bar" style="width:${r.rate}%;background:${col}">
+          ${r.rate>=15?r.present+'/'+r.total:''}</div></div>
+        <div class="chart-pct" style="color:${col}">${r.rate}%</div></div>`;
+    }).join('')||'<div class="spinner">No data yet.</div>';
+  } catch(e) {
+    document.getElementById('p-chart-wrap').innerHTML='<div class="spinner">Failed to load.</div>';
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────────────
+function show(id, display='block') { document.getElementById(id).style.display=display; }
+function hide(id) { document.getElementById(id).style.display='none'; }
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Enter' && document.getElementById('login-screen').style.display!=='none') doLogin();
+});
+</script>
+</body>
+</html>
